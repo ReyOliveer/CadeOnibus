@@ -1,30 +1,25 @@
-# 🚌 BusTracker RJ
+# CadeOnibus
 
-Rastreamento em tempo real dos ônibus do Rio de Janeiro (frota SPPO).
+Aplicacao de rastreamento em tempo real dos onibus do Rio de Janeiro (frota SPPO).
 
----
-
-## Pré-requisitos
+## Pre-requisitos
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
 - [Node.js 18+](https://nodejs.org)
 
----
-
 ## Estrutura
 
-```
+```text
 CadeOnibus/
-├── BusTrackerAPI/          ← backend C#
-└── BusTrackerFrontend/     ← frontend React
+|-- BusTrackerAPI/          <- backend C#
+`-- BusTrackerFrontend/     <- frontend React
 ```
-
----
 
 ## Como rodar
 
 ### 1. Build do frontend
-> Só precisa rodar novamente se mudar algo no frontend.
+
+So precisa rodar novamente se mudar algo no frontend.
 
 ```bash
 cd BusTrackerFrontend
@@ -32,21 +27,20 @@ npm install
 npm run build
 ```
 
-Isso gera os arquivos estáticos em `BusTrackerAPI/wwwroot/` automaticamente.
+Isso gera os arquivos estaticos em `BusTrackerAPI/wwwroot/` automaticamente.
 
 ### 2. Rodar o backend
+
 ```bash
 cd BusTrackerAPI
 dotnet run
 ```
 
-Acesse **http://localhost:5000** — o mapa já aparece com os ônibus ao vivo.
+Acesse **http://localhost:5000** para abrir o mapa com os onibus.
 
----
+## Desenvolvimento
 
-## Desenvolvimento (hot reload no frontend)
-
-Se estiver mexendo no React e quiser ver mudanças sem fazer build:
+Se estiver mexendo no React e quiser ver mudancas sem fazer build:
 
 ```bash
 # Terminal 1
@@ -56,16 +50,14 @@ cd BusTrackerAPI && dotnet run
 cd BusTrackerFrontend && npm run dev
 ```
 
-Acesse **http://localhost:5173** — as mudanças aparecem em tempo real.
-
----
+Acesse **http://localhost:5173** para ver as mudancas em tempo real.
 
 ## Endpoints da API
 
-| Rota | Descrição |
+| Rota | Descricao |
 |------|-----------|
-| `GET /api/buses` | Todos os ônibus |
+| `GET /api/buses` | Todos os onibus |
 | `GET /api/buses?linha=485` | Filtrado por linha |
-| `GET /api/buses/lines` | Estatísticas por linha |
+| `GET /api/buses/lines` | Estatisticas por linha |
 | `GET /api/buses/health` | Health check |
-| `GET /swagger` | Documentação (só em dev) |
+| `GET /swagger` | Documentacao (so em dev) |

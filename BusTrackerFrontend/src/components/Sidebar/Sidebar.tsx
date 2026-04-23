@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: 'Configurações',
+    label: 'Configuracoes',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" />
@@ -131,7 +131,7 @@ export function Sidebar({
           </div>
           <div>
             <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 16, color: 'var(--text)', lineHeight: 1.1 }}>
-              Cade<span style={{ color: 'var(--accent)' }}>Ônibus</span>
+              Cade<span style={{ color: 'var(--accent)' }}>Onibus</span>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.4px', marginTop: 1 }}>
               Rio de Janeiro · SPPO
@@ -185,7 +185,7 @@ export function Sidebar({
             animation: (!isError && !isLoading) ? 'pulse 2s infinite' : 'none',
           }} />
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {isError ? 'Erro de conexão' : isLoading ? 'Atualizando...' : 'Ao vivo'}
+            {isError ? 'Erro de conexao' : isLoading ? 'Atualizando...' : 'Ao vivo'}
           </span>
           {lastUpdate && !isLoading && (
             <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>
@@ -209,7 +209,7 @@ export function Sidebar({
         gap: 6, padding: '10px 12px', borderBottom: '1px solid var(--border)',
       }}>
         <StatCard label="Total" value={totalBuses} color="var(--accent)" />
-        <StatCard label="Visíveis" value={visibleBuses} color={hasSelection ? '#7c3aed' : 'var(--accent)'} />
+        <StatCard label="Visiveis" value={visibleBuses} color={hasSelection ? '#7c3aed' : 'var(--accent)'} />
       </div>
 
       {selectedBus && (
@@ -227,7 +227,7 @@ export function Sidebar({
                 {selectedBus.linha}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                {selectedBus.trajeto ?? 'Trajeto não informado'}
+                {selectedBus.trajeto ?? 'Trajeto nao informado'}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 2 }}>
                 Ord: {selectedBus.ordem} · {selectedBus.velocidade.toFixed(0)} km/h
@@ -279,12 +279,12 @@ export function Sidebar({
           transition: 'all 0.15s',
         }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
-            Exibição do mapa
+            Exibicao do mapa
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
             {hasSelection
-              ? `Mostrando apenas ônibus cuja linha contém "${lineFilter.trim()}".`
-              : 'Digite o número da linha para mostrar somente os ônibus desejados no mapa.'}
+              ? `Mostrando apenas onibus cuja linha contem "${lineFilter.trim()}".`
+              : 'Digite o numero da linha para mostrar somente os onibus desejados no mapa.'}
           </div>
         </div>
       </div>
