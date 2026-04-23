@@ -1,0 +1,62 @@
+# ── .NET ──────────────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.pidb
+*.svclog
+*.scc
+*.pfx
+*.publishsettings
+.vs/
+.vscode/
+.idea/
+.dotnet/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Node.js ───────────────────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+
+# React build output (gerado em wwwroot via vite build)
+BusTrackerAPI/wwwroot/
+
+# Env / secrets ─────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+appsettings.Production.json
+*.pem
+*.key
+
+# IDEs / OS ─────────────────────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Claude Code
+.claude/
