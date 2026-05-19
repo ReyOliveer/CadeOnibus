@@ -28,6 +28,10 @@ builder.Services.AddHttpClient<IMobilidadeRioService, MobilidadeRioService>(clie
     client.Timeout = TimeSpan.FromSeconds(mobilidadeOptions.TimeoutSegundos);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
     client.DefaultRequestHeaders.Add("User-Agent", "BusTrackerAPI/1.0");
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
 });
 
 // ── Serviços ───────────────────────────────────────────────────────────────────

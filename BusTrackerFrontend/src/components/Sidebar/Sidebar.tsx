@@ -1,22 +1,37 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import type { BusPosition } from '../../types'
+
+// Paleta de cores para cada linha adicionada
+const LINE_COLORS = [
+  '#2563eb', '#7c3aed', '#dc2626', '#16a34a',
+  '#d97706', '#0891b2', '#be185d', '#65a30d', '#ea580c', '#0d9488',
+]
+export function lineColor(linha: string, activeLines: string[]): string {
+  const idx = activeLines.indexOf(linha)
+  return idx >= 0 ? LINE_COLORS[idx % LINE_COLORS.length] : '#64748b'
+}
 
 interface SidebarProps {
   activeNav: string
   onNavChange: (label: string) => void
+  activeLines: string[]
+  onAddLine: (line: string) => void
+  onRemoveLine: (line: string) => void
   totalBuses: number
-  visibleBuses: number
-  lineFilter: string
-  onLineFilterChange: (value: string) => void
-  onClearSelection: () => void
   selectedBus: BusPosition | null
   onClearBus: () => void
   isLoading: boolean
+  isFetching: boolean
   lastUpdate: Date | null
   isError: boolean
   onRefresh: () => void
   collapsed: boolean
   onToggleCollapse: () => void
+<<<<<<< Updated upstream
+=======
+  theme?: 'light' | 'dark'
+  onToggleTheme?: () => void
+>>>>>>> Stashed changes
 }
 
 type NavItem = { label: string; icon: React.ReactNode }
@@ -34,15 +49,6 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: 'Buscar Linha',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     label: 'Meu Perfil',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -51,24 +57,31 @@ const NAV_ITEMS: NavItem[] = [
       </svg>
     ),
   },
-  {
-    label: 'Configuracoes',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      </svg>
-    ),
-  },
 ]
 
 export function Sidebar({
+<<<<<<< Updated upstream
   activeNav, onNavChange, totalBuses, visibleBuses, lineFilter, onLineFilterChange, onClearSelection,
   selectedBus, onClearBus, isLoading, lastUpdate, isError, onRefresh,
   collapsed, onToggleCollapse,
+=======
+  activeNav, onNavChange, activeLines, onAddLine, onRemoveLine,
+  totalBuses, selectedBus, onClearBus, isLoading, isFetching, lastUpdate,
+  isError, onRefresh, collapsed, onToggleCollapse, theme, onToggleTheme,
+>>>>>>> Stashed changes
 }: SidebarProps) {
-  const [isLineInputFocused, setIsLineInputFocused] = useState(false)
-  const hasSelection = lineFilter.trim().length > 0
+  const [addInput, setAddInput] = useState('')
+
+  const handleAdd = useCallback(() => {
+    const line = addInput.trim().toUpperCase()
+    if (!line) return
+    onAddLine(line)
+    setAddInput('')
+  }, [addInput, onAddLine])
+
+  const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleAdd()
+  }
 
   if (collapsed) {
     return (
@@ -83,9 +96,7 @@ export function Sidebar({
             <path d="M7 4l5 5-5 5" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-
         <div style={{ width: 28, height: 1, background: 'var(--border)', margin: '4px 0' }} />
-
         {NAV_ITEMS.map(item => (
           <button
             key={item.label}
@@ -101,6 +112,17 @@ export function Sidebar({
             {item.icon}
           </button>
         ))}
+<<<<<<< Updated upstream
+=======
+        {onToggleTheme && (
+          <>
+            <div style={{ width: 28, height: 1, background: 'var(--border)', margin: '4px 0' }} />
+            <button onClick={onToggleTheme} title={`Alternar para tema ${theme === 'light' ? 'escuro' : 'claro'}`} style={btnIcon()}>
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+          </>
+        )}
+>>>>>>> Stashed changes
       </aside>
     )
   }
@@ -111,6 +133,7 @@ export function Sidebar({
       borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', height: '100%',
     }}>
+      {/* Header */}
       <div style={{
         padding: '14px 14px 12px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -145,6 +168,7 @@ export function Sidebar({
         </button>
       </div>
 
+      {/* Nav */}
       <nav style={{ padding: '10px 10px 8px', borderBottom: '1px solid var(--border)' }}>
         {NAV_ITEMS.map(item => {
           const isActive = activeNav === item.label
@@ -164,15 +188,14 @@ export function Sidebar({
               onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'var(--bg-subtle)' }}
               onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
             >
-              <span style={{ flexShrink: 0, color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
-                {item.icon}
-              </span>
+              <span style={{ flexShrink: 0, color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>{item.icon}</span>
               {item.label}
             </button>
           )
         })}
       </nav>
 
+      {/* Status bar */}
       <div style={{
         padding: '8px 14px', background: 'var(--bg-subtle)',
         borderBottom: '1px solid var(--border)',
@@ -181,13 +204,13 @@ export function Sidebar({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{
             width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-            background: isError ? 'var(--danger)' : isLoading ? 'var(--warning)' : 'var(--success)',
-            animation: (!isError && !isLoading) ? 'pulse 2s infinite' : 'none',
+            background: isError ? 'var(--danger)' : isFetching ? 'var(--warning)' : 'var(--success)',
+            animation: (!isError && !isFetching) ? 'pulse 2s infinite' : 'none',
           }} />
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {isError ? 'Erro de conexao' : isLoading ? 'Atualizando...' : 'Ao vivo'}
+            {isError ? 'Erro de conexao' : isFetching ? 'Atualizando...' : 'Ao vivo'}
           </span>
-          {lastUpdate && !isLoading && (
+          {lastUpdate && !isFetching && (
             <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>
               {lastUpdate.toLocaleTimeString('pt-BR')}
             </span>
@@ -199,19 +222,111 @@ export function Sidebar({
           color: 'var(--text-muted)', fontSize: 11,
           display: 'flex', alignItems: 'center', gap: 4,
         }}>
-          <span style={{ display: 'inline-block', animation: isLoading ? 'spin 1s linear infinite' : 'none' }}>↻</span>
+          <span style={{ display: 'inline-block', animation: isFetching ? 'spin 1s linear infinite' : 'none' }}>↻</span>
           Atualizar
         </button>
       </div>
 
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: 6, padding: '10px 12px', borderBottom: '1px solid var(--border)',
-      }}>
-        <StatCard label="Total" value={totalBuses} color="var(--accent)" />
-        <StatCard label="Visiveis" value={visibleBuses} color={hasSelection ? '#7c3aed' : 'var(--accent)'} />
+      {/* Stat */}
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+        <StatCard label="Ônibus no mapa" value={totalBuses} color="var(--accent)" />
       </div>
 
+      {/* Active lines section */}
+      <div style={{ padding: '10px 12px 6px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: 'var(--text-faint)',
+          textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span>Linhas monitoradas</span>
+          <span style={{ color: 'var(--accent)' }}>{activeLines.length}</span>
+        </div>
+
+        {/* Line chips */}
+        {activeLines.length === 0 ? (
+          <div style={{
+            fontSize: 12, color: 'var(--text-faint)', textAlign: 'center',
+            padding: '10px 0', fontStyle: 'italic',
+          }}>
+            Nenhuma linha ativa
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+            {activeLines.map((linha, i) => {
+              const color = LINE_COLORS[i % LINE_COLORS.length]
+              return (
+                <div
+                  key={linha}
+                  className="animate-fade-in"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: `${color}18`, border: `1px solid ${color}55`,
+                    borderRadius: 8, padding: '4px 8px',
+                  }}
+                >
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                  <span style={{
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: 13,
+                    fontWeight: 700, color,
+                  }}>
+                    {linha}
+                  </span>
+                  <button
+                    onClick={() => onRemoveLine(linha)}
+                    title={`Remover linha ${linha}`}
+                    style={{
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      color, fontSize: 14, lineHeight: 1, padding: '0 1px',
+                      opacity: 0.7, transition: 'opacity 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
+                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.7' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Add line input */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            type="text"
+            placeholder="Adicionar linha..."
+            value={addInput}
+            onChange={e => setAddInput(e.target.value)}
+            onKeyDown={handleKey}
+            style={{
+              flex: 1, background: 'var(--bg-subtle)',
+              border: '1px solid var(--border)',
+              borderRadius: 8, padding: '6px 10px',
+              color: 'var(--text)', fontFamily: 'DM Sans', fontSize: 12,
+              outline: 'none', minHeight: 32,
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
+          />
+          <button
+            onClick={handleAdd}
+            title="Adicionar linha"
+            style={{
+              background: 'var(--accent)', border: 'none', borderRadius: 8,
+              width: 32, height: 32, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'white', fontSize: 18, flexShrink: 0, transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Selected bus card */}
       {selectedBus && (
         <div className="animate-fade-in" style={{
           margin: '8px 10px', background: 'var(--accent-light)',
@@ -241,53 +356,36 @@ export function Sidebar({
         </div>
       )}
 
-      <div style={{ padding: '8px 14px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-          Filtro de Linha
-        </span>
-        {hasSelection && (
-          <button onClick={onClearSelection} style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--accent)', fontSize: 11, textDecoration: 'underline', padding: 0,
-          }}>Limpar</button>
-        )}
-      </div>
+      <div style={{ flex: 1 }} />
 
-      <div style={{ padding: '0 10px 6px' }}>
-        <input
-          type="text"
-          placeholder="Digite a linha desejada"
-          value={lineFilter}
-          onChange={e => onLineFilterChange(e.target.value)}
-          style={{
-            width: '100%', background: 'var(--bg-subtle)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: '7px 10px', color: 'var(--text)',
-            fontFamily: 'DM Sans', fontSize: 13, outline: 'none', boxSizing: 'border-box', minHeight: 40,
-          }}
-          onFocus={() => setIsLineInputFocused(true)}
-          onBlur={() => setIsLineInputFocused(false)}
-        />
-      </div>
-
-      <div style={{ flex: 1, padding: '6px 10px 12px' }}>
-        <div style={{
-          height: '100%',
-          border: `1px solid ${isLineInputFocused ? 'var(--accent)' : 'var(--border)'}`,
-          background: isLineInputFocused ? 'var(--accent-light)' : 'var(--bg-subtle)',
-          borderRadius: 8,
-          padding: '14px 12px',
-          transition: 'all 0.15s',
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
-            Exibicao do mapa
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            {hasSelection
-              ? `Mostrando apenas onibus cuja linha contem "${lineFilter.trim()}".`
-              : 'Digite o numero da linha para mostrar somente os onibus desejados no mapa.'}
-          </div>
+      {onToggleTheme && (
+        <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button
+            onClick={onToggleTheme}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-subtle)',
+              color: 'var(--text)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--border)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-subtle)' }}
+          >
+            <span>{theme === 'light' ? '🌙' : '☀️'}</span>
+            <span>Tema {theme === 'light' ? 'Escuro' : 'Claro'}</span>
+          </button>
         </div>
-      </div>
+      )}
 
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </aside>

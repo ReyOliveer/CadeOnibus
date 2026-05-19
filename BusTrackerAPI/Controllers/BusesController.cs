@@ -10,11 +10,19 @@ namespace BusTrackerAPI.Controllers;
 public class BusesController : ControllerBase
 {
     private readonly IBusService _busService;
+    private readonly IMobilidadeRioService _mobilidadeService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<BusesController> _logger;
 
-    public BusesController(IBusService busService, ILogger<BusesController> logger)
+    public BusesController(
+        IBusService busService,
+        IMobilidadeRioService mobilidadeService,
+        IConfiguration configuration,
+        ILogger<BusesController> logger)
     {
         _busService = busService;
+        _mobilidadeService = mobilidadeService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -99,6 +107,49 @@ public class BusesController : ControllerBase
         catch
         {
             return StatusCode(503, new { status = "unhealthy", timestamp = DateTime.UtcNow });
+        }
+    }
+
+    /// <summary>Recebe posições brutas inseridas externamente, mantendo apenas os registros dos últimos 2 minutos.</summary>
+    [HttpPost("ingest")]
+    public async Task<IActionResult> IngestBuses([FromBody] List<SppoRawEntryDto> rawEntries, CancellationToken ct)
+    {
+        if (rawEntries == null || rawEntries.Count == 0)
+        {
+            return BadRequest(new ErrorResponseDto("A lista de posições de ônibus não pode estar vazia.", null, 400));
+        }
+
+        _logger.LogInformation("POST /api/buses/ingest | Recebidos {Count} registros brutas", rawEntries.Count);
+        try
+        {
+            var totalIngerido = await _mobilidadeService.IngestBusPositionsAsync(rawEntries, ct);
+            return Ok(new { 
+                message = "Ingestão processada com sucesso.", 
+                totalRecebido = rawEntries.Count, 
+                totalIngerido = totalIngerido, 
+                timestamp = DateTime.UtcNow 
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao processar ingestão externa de ônibus");
+            return StatusCode(500, new ErrorResponseDto("Erro interno ao processar a ingestão de ônibus.", ex.Message, 500));
+        }
+    }
+
+    /// <summary>Retorna as configurações públicas necessárias para o funcionamento do frontend.</summary>
+    [HttpGet("config")]
+    public IActionResult GetConfig()
+    {
+        try
+        {
+            var googleMapsApiKey = _configuration["GoogleMapsApiKey"] ?? string.Empty;
+            return Ok(new { googleMapsApiKey });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar configurações públicas");
+            return StatusCode(500, new ErrorResponseDto("Erro interno ao buscar as configurações.", ex.Message, 500));
         }
     }
 }

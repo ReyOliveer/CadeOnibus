@@ -13,6 +13,13 @@ public class MobilidadeRioOptions
     /// <summary>Tempo de cache em segundos para evitar chamadas repetidas</summary>
     public int CacheSegundos { get; set; } = 20;
 
+    /// <summary>
+    /// Multiplicador do cache de fallback. O cache em memória dura CacheSegundos * FallbackCacheMultiplicador.
+    /// Isso garante que o sistema continue servindo dados mesmo se o background refresh falhar algumas vezes.
+    /// Ex: CacheSegundos=30, FallbackCacheMultiplicador=5 → dados ficam até 150s em memória.
+    /// </summary>
+    public int FallbackCacheMultiplicador { get; set; } = 5;
+
     /// <summary>Timeout em segundos para chamadas HTTP</summary>
     public int TimeoutSegundos { get; set; } = 15;
 

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Globalization;
 using BusTrackerAPI.Configuration;
+using BusTrackerAPI.DTOs;
 using BusTrackerAPI.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -17,10 +18,9 @@ public class MobilidadeRioService : IMobilidadeRioService
     private readonly IBusStationaryTracker _stationaryTracker;
 
     private const string CacheKeyAllBuses = "buses:all";
-    private const string CacheKeyLines = "buses:lines";
+    private const string CacheKeyLines    = "buses:lines";
 
-    // Garante que apenas uma chamada externa ocorre por vez.
-    // Requisições simultâneas com cache expirado aguardam a primeira completar.
+    // Garante que apenas UMA chamada externa ocorre por vez no caso de cache miss inicial.
     private static readonly SemaphoreSlim _fetchLock = new(1, 1);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -44,34 +44,31 @@ public class MobilidadeRioService : IMobilidadeRioService
         _stationaryTracker = stationaryTracker;
     }
 
-    public async Task<IEnumerable<BusPosition>> GetBusPositionsAsync(CancellationToken ct = default)
+    // ── Leitura do cache (caminho quente — usuários) ───────────────────────────
+
+    public Task<IEnumerable<BusPosition>> GetBusPositionsAsync(CancellationToken ct = default)
     {
         if (_cache.TryGetValue(CacheKeyAllBuses, out IEnumerable<BusPosition>? cached) && cached is not null)
         {
-            _logger.LogDebug("Retornando {Count} ônibus do cache", cached.Count());
-            return cached;
+            _logger.LogDebug("Cache hit: {Count} ônibus servidos da memória", cached.Count());
+            return Task.FromResult(cached);
         }
 
+        // Cache miss (primeira inicialização ou falha prolongada do worker).
+        // Apenas neste caso o usuário espera — e apenas UM usuário espera (o resto aguarda no lock).
+        return FetchWithLockAsync(ct);
+    }
+
+    /// <summary>
+    /// Forçado pelo BackgroundBusRefreshService — sempre chama a API externa,
+    /// atualiza o cache com TTL de fallback estendido e retorna os dados novos.
+    /// </summary>
+    public async Task<IEnumerable<BusPosition>> ForceRefreshAsync(CancellationToken ct = default)
+    {
         await _fetchLock.WaitAsync(ct);
         try
         {
-            // Double-check: outra requisição pode ter populado o cache enquanto aguardávamos.
-            if (_cache.TryGetValue(CacheKeyAllBuses, out cached) && cached is not null)
-            {
-                _logger.LogDebug("Cache populado por outra requisição, retornando {Count} ônibus", cached.Count());
-                return cached;
-            }
-
-            var positions = await FetchFromApiAsync(ct);
-
-            // Atualiza o tracker com as posições atuais — base para o filtro de ônibus parados.
-            _stationaryTracker.UpdateHistory(positions);
-
-            _cache.Set(CacheKeyAllBuses, positions,
-                new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromSeconds(_options.CacheSegundos)));
-            _cache.Remove(CacheKeyLines);
-
-            return positions;
+            return await FetchAndPopulateCacheAsync(ct);
         }
         finally
         {
@@ -79,11 +76,10 @@ public class MobilidadeRioService : IMobilidadeRioService
         }
     }
 
-    public async Task<IEnumerable<BusPosition>> GetBusPositionsByLineAsync(string linha, CancellationToken ct = default)
-    {
-        var all = await GetBusPositionsAsync(ct);
-        return all.Where(b => string.Equals(b.Linha, linha, StringComparison.OrdinalIgnoreCase));
-    }
+    public Task<IEnumerable<BusPosition>> GetBusPositionsByLineAsync(string linha, CancellationToken ct = default)
+        => GetBusPositionsAsync(ct).ContinueWith(t =>
+            t.Result.Where(b => string.Equals(b.Linha, linha, StringComparison.OrdinalIgnoreCase)),
+            ct, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
 
     public async Task<IEnumerable<string>> GetActiveLinesAsync(CancellationToken ct = default)
     {
@@ -99,27 +95,154 @@ public class MobilidadeRioService : IMobilidadeRioService
             .OrderBy(l => l)
             .ToList();
 
+        var fallbackTtl = TimeSpan.FromSeconds(_options.CacheSegundos * _options.FallbackCacheMultiplicador);
         _cache.Set(CacheKeyLines, lines,
-            new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromSeconds(_options.CacheSegundos)));
+            new MemoryCacheEntryOptions().SetAbsoluteExpiration(fallbackTtl));
 
         return lines;
     }
 
+    public async Task<int> IngestBusPositionsAsync(IEnumerable<SppoRawEntryDto> rawEntries, CancellationToken ct = default)
+    {
+        if (rawEntries == null || !rawEntries.Any())
+        {
+            return 0;
+        }
+
+        var now = DateTime.Now;
+        var twoMinutesAgo = now.AddMinutes(-2);
+        var futureLimit = now.AddMinutes(1);
+
+        // Filtrar posições que pertencem aos últimos 2 minutos
+        var filteredRaw = rawEntries
+            .Where(entry =>
+            {
+                var parsedDate = ParseDataHora(entry.DataHora);
+                return parsedDate >= twoMinutesAgo && parsedDate <= futureLimit;
+            })
+            .ToList();
+
+        if (filteredRaw.Count == 0)
+        {
+            _logger.LogWarning("Ingestão: nenhum registro dos {Total} recebidos está dentro da janela de 2 minutos (entre {Inicio} e {Fim}).", 
+                rawEntries.Count(), twoMinutesAgo.ToString("HH:mm:ss"), futureLimit.ToString("HH:mm:ss"));
+            return 0;
+        }
+
+        // Mapear, validar e de-duplicar pela ordem mais recente
+        var positions = filteredRaw
+            .Select(MapToModel)
+            .Where(IsValidPosition)
+            .GroupBy(p => p.Ordem, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.OrderByDescending(p => p.DataHora).First())
+            .ToList();
+
+        if (positions.Count == 0)
+        {
+            _logger.LogWarning("Ingestão: registros foram filtrados pela janela de tempo, mas nenhum resultou em uma posição válida.");
+            return 0;
+        }
+
+        await _fetchLock.WaitAsync(ct);
+        try
+        {
+            // Atualiza o histórico para o filtro de ônibus parados.
+            _stationaryTracker.UpdateHistory(positions);
+
+            var fallbackTtl = TimeSpan.FromSeconds(_options.CacheSegundos * _options.FallbackCacheMultiplicador);
+
+            _cache.Set(CacheKeyAllBuses, (IEnumerable<BusPosition>)positions,
+                new MemoryCacheEntryOptions().SetAbsoluteExpiration(fallbackTtl));
+            _cache.Remove(CacheKeyLines);
+
+            _logger.LogInformation("✓ Ingestão externa processada: {Filtrado} registros válidos e de-duplicados em cache (de {Total} enviados).", 
+                positions.Count, rawEntries.Count());
+
+            return positions.Count;
+        }
+        finally
+        {
+            _fetchLock.Release();
+        }
+    }
+
+    // ── Internos ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Usado no cache-miss do caminho de leitura do usuário.
+    /// Garante que apenas uma thread chame a API externa por vez.
+    /// </summary>
+    private async Task<IEnumerable<BusPosition>> FetchWithLockAsync(CancellationToken ct)
+    {
+        await _fetchLock.WaitAsync(ct);
+        try
+        {
+            // Double-check após adquirir o lock — outra thread pode ter populado o cache.
+            if (_cache.TryGetValue(CacheKeyAllBuses, out IEnumerable<BusPosition>? cached) && cached is not null)
+            {
+                _logger.LogDebug("Cache populado por outra thread enquanto aguardávamos o lock.");
+                return cached;
+            }
+
+            return await FetchAndPopulateCacheAsync(ct);
+        }
+        finally
+        {
+            _fetchLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Chama a API externa, atualiza o tracker de ônibus parados e salva no cache com TTL de FALLBACK.
+    /// O TTL de fallback é CacheSegundos × FallbackCacheMultiplicador (padrão: 30s × 5 = 150s).
+    /// Isso garante que mesmo que o worker falhe algumas vezes, o usuário não veja erro.
+    /// </summary>
+    private async Task<IEnumerable<BusPosition>> FetchAndPopulateCacheAsync(CancellationToken ct)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var positions = await FetchFromApiAsync(ct);
+        sw.Stop();
+
+        _logger.LogInformation("API externa respondeu em {Ms}ms com {Count} ônibus filtrados.",
+            sw.ElapsedMilliseconds, positions.Count);
+
+        // Atualiza o histórico de posições para o filtro de ônibus parados.
+        _stationaryTracker.UpdateHistory(positions);
+
+        // TTL estendido: o cache dura muito mais que o intervalo de refresh.
+        // Assim, se o worker falhar algumas vezes, o usuário continua sendo servido.
+        var fallbackTtl = TimeSpan.FromSeconds(_options.CacheSegundos * _options.FallbackCacheMultiplicador);
+
+        _cache.Set(CacheKeyAllBuses, (IEnumerable<BusPosition>)positions,
+            new MemoryCacheEntryOptions().SetAbsoluteExpiration(fallbackTtl));
+        _cache.Remove(CacheKeyLines);
+
+        return positions;
+    }
+
+    // ── Chamada HTTP ───────────────────────────────────────────────────────────
+
     private async Task<List<BusPosition>> FetchFromApiAsync(CancellationToken ct)
     {
-        const string url = "/gps/sppo";
+        var dataFinal = DateTime.Now;
+        var dataInicial = dataFinal.AddMinutes(-_options.JanelaTempoMinutos);
 
-        _logger.LogInformation("Chamando API Mobilidade Rio: {Url}", url);
+        var dataInicialStr = dataInicial.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+        var dataFinalStr = dataFinal.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+        var url = $"/gps/sppo?dataInicial={Uri.EscapeDataString(dataInicialStr)}&dataFinal={Uri.EscapeDataString(dataFinalStr)}";
+
+        _logger.LogInformation("→ Chamando API Mobilidade Rio: {Url}", url);
 
         try
         {
             // ResponseHeadersRead: não aguarda o corpo inteiro antes de retornar o HttpResponseMessage.
-            // O JSON é desserializado diretamente do stream, sem alocar string intermediária.
+            // O JSON é deserializado diretamente do stream, sem alocar string intermediária (~10 MB).
             using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            var raw = await JsonSerializer.DeserializeAsync<List<SppoRawEntry>>(stream, JsonOptions, ct);
+            var raw = await JsonSerializer.DeserializeAsync<List<SppoRawEntryDto>>(stream, JsonOptions, ct);
 
             if (raw is null || raw.Count == 0)
             {
@@ -138,18 +261,17 @@ public class MobilidadeRioService : IMobilidadeRioService
             {
                 var firstRaw = raw.First();
                 _logger.LogWarning(
-                    "Todos os registros foram descartados. Exemplo bruto: ordem={Ordem}, linha={Linha}, latitude={Latitude}, longitude={Longitude}, datahora={DataHora}, extras={Extras}",
-                    firstRaw.Ordem,
-                    firstRaw.Linha,
-                    firstRaw.Latitude?.ToString(),
-                    firstRaw.Longitude?.ToString(),
-                    firstRaw.DataHora?.ToString(),
-                    firstRaw.ExtensionData is null
-                        ? "nenhum"
-                        : string.Join(", ", firstRaw.ExtensionData.Keys));
+                    "Todos os registros foram descartados. Exemplo bruto: ordem={Ordem}, linha={Linha}, lat={Lat}, lng={Lng}, datahora={DataHora}",
+                    firstRaw.Ordem, firstRaw.Linha,
+                    firstRaw.Latitude?.ToString(), firstRaw.Longitude?.ToString(),
+                    firstRaw.DataHora?.ToString());
             }
 
+<<<<<<< Updated upstream
             _logger.LogInformation("Recebidos {Total} ônibus da API (após filtro: {Filtrado})",
+=======
+            _logger.LogInformation("← API retornou {Total} registros brutos → {Filtrado} ônibus ativos",
+>>>>>>> Stashed changes
                 raw.Count, positions.Count);
 
             return positions;
@@ -166,18 +288,21 @@ public class MobilidadeRioService : IMobilidadeRioService
         }
     }
 
-    private static BusPosition MapToModel(SppoRawEntry raw) => new()
+    // ── Mapeamento ─────────────────────────────────────────────────────────────
+
+    private static BusPosition MapToModel(SppoRawEntryDto raw) => new()
     {
-        Ordem     = raw.Ordem ?? string.Empty,
-        Linha     = raw.Linha ?? string.Empty,
-        Latitude  = ParseDouble(raw.Latitude),
-        Longitude = ParseDouble(raw.Longitude),
+        Ordem      = raw.Ordem ?? string.Empty,
+        Linha      = raw.Linha ?? string.Empty,
+        Latitude   = ParseDouble(raw.Latitude),
+        Longitude  = ParseDouble(raw.Longitude),
         Velocidade = raw.Velocidade,
-        DataHora  = ParseDataHora(raw.DataHora),
-        Sentido   = raw.Sentido,
-        Trajeto   = raw.Trajeto,
+        DataHora   = ParseDataHora(raw.DataHora),
+        Sentido    = raw.Sentido,
+        Trajeto    = raw.Trajeto,
     };
 
+<<<<<<< Updated upstream
     private static bool IsValidPosition(BusPosition position)
     {
         return
@@ -189,81 +314,58 @@ public class MobilidadeRioService : IMobilidadeRioService
             position.Longitude is >= -180 and <= 180 &&
             !(position.Latitude == 0 && position.Longitude == 0);
     }
+=======
+    private static bool IsValidPosition(BusPosition p) =>
+        !string.IsNullOrWhiteSpace(p.Ordem) &&
+        !string.IsNullOrWhiteSpace(p.Linha) &&
+        !double.IsNaN(p.Latitude) &&
+        !double.IsNaN(p.Longitude) &&
+        p.Latitude  is >= -90  and <= 90 &&
+        p.Longitude is >= -180 and <= 180 &&
+        !(p.Latitude == 0 && p.Longitude == 0) &&
+        p.DataHora != default &&
+        p.DataHora <= DateTime.Now.AddMinutes(5);
+>>>>>>> Stashed changes
 
-    private static double ParseDouble(object? value)
+    private static double ParseDouble(object? value) => value switch
     {
-        return value switch
-        {
-            double d => d,
-            float f => f,
-            decimal m => (double)m,
-            int i => i,
-            long l => l,
-            JsonElement { ValueKind: JsonValueKind.Number } element when element.TryGetDouble(out var numericValue) => numericValue,
-            JsonElement { ValueKind: JsonValueKind.String } element => ParseDouble(element.GetString()),
-            // A API retorna coordenadas com vírgula como separador decimal (pt-BR).
-            // Substituímos vírgula por ponto antes de parsear para evitar que
-            // InvariantCulture interprete a vírgula como separador de milhares.
-            string s when double.TryParse(s.Replace(',', '.'),
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out var parsed) => parsed,
-            _ => 0
-        };
-    }
+        double d   => d,
+        float  f   => f,
+        decimal m  => (double)m,
+        int    i   => i,
+        long   l   => l,
+        JsonElement { ValueKind: JsonValueKind.Number  } e when e.TryGetDouble(out var n) => n,
+        JsonElement { ValueKind: JsonValueKind.String  } e => ParseDouble(e.GetString()),
+        string s when double.TryParse(s.Replace(',', '.'),
+            NumberStyles.Any, CultureInfo.InvariantCulture, out var p) => p,
+        _ => 0
+    };
 
-    private static DateTime ParseDataHora(object? value)
+    private static DateTime ParseDataHora(object? value) => value switch
     {
-        return value switch
-        {
-            null => DateTime.Now,
-            long unixValue => ParseUnixTimestamp(unixValue),
-            int unixValue => ParseUnixTimestamp(unixValue),
-            double unixValue => ParseUnixTimestamp((long)unixValue),
-            decimal unixValue => ParseUnixTimestamp((long)unixValue),
-            JsonElement { ValueKind: JsonValueKind.Number } element when element.TryGetInt64(out var unixValue)
-                => ParseUnixTimestamp(unixValue),
-            JsonElement { ValueKind: JsonValueKind.String } element => ParseDataHora(element.GetString()),
-            string s when long.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var unixFromString)
-                => ParseUnixTimestamp(unixFromString),
-            string s when DateTime.TryParseExact(s, "yyyy-MM-dd HH:mm:ss",
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var dt) => dt,
-            string s when DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate)
-                => parsedDate,
-            _ => DateTime.Now
-        };
-    }
+        null    => DateTime.Now,
+        long    v => ParseUnix(v),
+        int     v => ParseUnix(v),
+        double  v => ParseUnix((long)v),
+        decimal v => ParseUnix((long)v),
+        JsonElement { ValueKind: JsonValueKind.Number } e when e.TryGetInt64(out var u) => ParseUnix(u),
+        JsonElement { ValueKind: JsonValueKind.String } e => ParseDataHora(e.GetString()),
+        string s when long.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var u) => ParseUnix(u),
+        string s when DateTime.TryParseExact(s, "yyyy-MM-dd HH:mm:ss",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) => dt,
+        string s when DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) => dt,
+        _ => DateTime.Now
+    };
 
-    private static DateTime ParseUnixTimestamp(long unixValue)
+    private static DateTime ParseUnix(long unix)
     {
-        if (unixValue <= 0)
-            return DateTime.Now;
-
-        // A API pode retornar Unix time em segundos ou milissegundos.
+        if (unix <= 0) return DateTime.Now;
         try
         {
-            if (unixValue > 253_402_300_799)
-                return DateTimeOffset.FromUnixTimeMilliseconds(unixValue).LocalDateTime;
-
-            return DateTimeOffset.FromUnixTimeSeconds(unixValue).LocalDateTime;
+            return unix > 253_402_300_799
+                ? DateTimeOffset.FromUnixTimeMilliseconds(unix).LocalDateTime
+                : DateTimeOffset.FromUnixTimeSeconds(unix).LocalDateTime;
         }
-        catch (ArgumentOutOfRangeException)
-        {
-            return DateTime.Now;
-        }
-    }
-
-    private sealed class SppoRawEntry
-    {
-        [JsonPropertyName("ordem")]     public string? Ordem     { get; set; }
-        [JsonPropertyName("linha")]     public string? Linha     { get; set; }
-        [JsonPropertyName("latitude")]  public object? Latitude  { get; set; }
-        [JsonPropertyName("longitude")] public object? Longitude { get; set; }
-        [JsonPropertyName("velocidade")]public double  Velocidade{ get; set; }
-        [JsonPropertyName("datahora")]  public object? DataHora  { get; set; }
-        [JsonPropertyName("sentido")]   public string? Sentido   { get; set; }
-        [JsonPropertyName("trajeto")]   public string? Trajeto   { get; set; }
-        [JsonExtensionData]             public Dictionary<string, JsonElement>? ExtensionData { get; set; }
+        catch (ArgumentOutOfRangeException) { return DateTime.Now; }
     }
 }

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace BusTrackerAPI.DTOs;
 
 /// <summary>
@@ -43,3 +45,18 @@ public record ErrorResponseDto(
     string? Detail = null,
     int StatusCode = 500
 );
+
+/// <summary>
+/// DTO que representa o formato bruto de uma entrada de GPS da API externa de mobilidade para ingestão.
+/// </summary>
+public class SppoRawEntryDto
+{
+    [JsonPropertyName("ordem")]      public string? Ordem      { get; set; }
+    [JsonPropertyName("linha")]      public string? Linha      { get; set; }
+    [JsonPropertyName("latitude")]   public object? Latitude   { get; set; }
+    [JsonPropertyName("longitude")]  public object? Longitude  { get; set; }
+    [JsonPropertyName("velocidade")] public double  Velocidade { get; set; }
+    [JsonPropertyName("datahora")]   public object? DataHora   { get; set; }
+    [JsonPropertyName("sentido")]    public string? Sentido    { get; set; }
+    [JsonPropertyName("trajeto")]    public string? Trajeto    { get; set; }
+}
