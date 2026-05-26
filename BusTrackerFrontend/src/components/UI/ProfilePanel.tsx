@@ -75,9 +75,9 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
           width: 'min(540px, 100%)',
           maxHeight: 'calc(100vh - 64px)',
           overflowY: 'auto',
-          background: 'rgba(255,255,255,0.96)',
+          background: 'var(--bg)',
           backdropFilter: 'blur(18px)',
-          border: '1px solid rgba(255,255,255,0.7)',
+          border: '1px solid var(--border)',
           borderRadius: 8,
           boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)',
         }}
@@ -91,7 +91,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '20px 22px 16px',
-            background: 'rgba(255,255,255,0.92)',
+            background: 'var(--bg)',
             borderBottom: '1px solid var(--border)',
           }}
         >
@@ -109,7 +109,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
               height: 36,
               borderRadius: 8,
               border: '1px solid var(--border)',
-              background: 'white',
+              background: 'var(--bg-subtle)',
               color: 'var(--text-muted)',
               cursor: 'pointer',
               fontSize: 20,
@@ -138,7 +138,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   border: '1px solid var(--border)',
                   borderRadius: 8,
                   overflow: 'hidden',
-                  background: 'white',
+                  background: 'var(--bg-subtle)',
                 }}
               >
                 {section.rows.map((row, index) => (

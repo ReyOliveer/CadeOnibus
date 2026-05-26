@@ -27,11 +27,8 @@ interface SidebarProps {
   onRefresh: () => void
   collapsed: boolean
   onToggleCollapse: () => void
-<<<<<<< Updated upstream
-=======
   theme?: 'light' | 'dark'
   onToggleTheme?: () => void
->>>>>>> Stashed changes
 }
 
 type NavItem = { label: string; icon: React.ReactNode }
@@ -60,15 +57,9 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 export function Sidebar({
-<<<<<<< Updated upstream
-  activeNav, onNavChange, totalBuses, visibleBuses, lineFilter, onLineFilterChange, onClearSelection,
-  selectedBus, onClearBus, isLoading, lastUpdate, isError, onRefresh,
-  collapsed, onToggleCollapse,
-=======
   activeNav, onNavChange, activeLines, onAddLine, onRemoveLine,
   totalBuses, selectedBus, onClearBus, isLoading, isFetching, lastUpdate,
   isError, onRefresh, collapsed, onToggleCollapse, theme, onToggleTheme,
->>>>>>> Stashed changes
 }: SidebarProps) {
   const [addInput, setAddInput] = useState('')
 
@@ -112,8 +103,6 @@ export function Sidebar({
             {item.icon}
           </button>
         ))}
-<<<<<<< Updated upstream
-=======
         {onToggleTheme && (
           <>
             <div style={{ width: 28, height: 1, background: 'var(--border)', margin: '4px 0' }} />
@@ -122,7 +111,6 @@ export function Sidebar({
             </button>
           </>
         )}
->>>>>>> Stashed changes
       </aside>
     )
   }
@@ -138,195 +126,168 @@ export function Sidebar({
         padding: '14px 14px 12px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-            background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 28, height: 28, borderRadius: 8, background: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="5" width="20" height="13" rx="3" fill="white" opacity=".9" />
-              <rect x="4" y="7" width="4" height="3" rx="1" fill="var(--accent)" />
-              <rect x="10" y="7" width="4" height="3" rx="1" fill="var(--accent)" />
-              <rect x="16" y="7" width="4" height="3" rx="1" fill="var(--accent)" />
-              <circle cx="7" cy="19" r="2" fill="var(--accent)" />
-              <circle cx="17" cy="19" r="2" fill="var(--accent)" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="6" width="18" height="12" rx="2" fill="white" />
+              <circle cx="7" cy="18" r="1.5" fill="white" />
+              <circle cx="17" cy="18" r="1.5" fill="white" />
             </svg>
           </div>
-          <div>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 16, color: 'var(--text)', lineHeight: 1.1 }}>
-              Cade<span style={{ color: 'var(--accent)' }}>Onibus</span>
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.4px', marginTop: 1 }}>
-              Rio de Janeiro · SPPO
-            </div>
-          </div>
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+            CadeÔnibus
+          </span>
         </div>
-        <button onClick={onToggleCollapse} title="Ocultar" style={btnIcon()}>
-          <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-            <path d="M11 4L6 9l5 5" stroke="var(--text-muted)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <button onClick={onToggleCollapse} title="Recolher" style={{
+          width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)',
+          background: 'transparent', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+            <path d="M11 14l-5-5 5-5" stroke="var(--text-muted)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
 
-      {/* Nav */}
-      <nav style={{ padding: '10px 10px 8px', borderBottom: '1px solid var(--border)' }}>
+      {/* Navigation */}
+      <div style={{ padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {NAV_ITEMS.map(item => {
-          const isActive = activeNav === item.label
+          const active = activeNav === item.label
           return (
             <button
               key={item.label}
               onClick={() => onNavChange(item.label)}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                padding: '9px 11px', borderRadius: 8, marginBottom: 2,
-                border: `1px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
-                background: isActive ? 'var(--accent-light)' : 'transparent',
-                color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-                fontSize: 13, fontWeight: isActive ? 600 : 400,
-                cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', height: 38, padding: '0 12px',
+                borderRadius: 8, border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: 600,
+                transition: 'all 0.15s',
+                background: active ? 'var(--accent-light)' : 'transparent',
+                color: active ? 'var(--accent)' : 'var(--text-muted)',
               }}
-              onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'var(--bg-subtle)' }}
-              onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
             >
-              <span style={{ flexShrink: 0, color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>{item.icon}</span>
+              <span style={{ display: 'flex', alignItems: 'center', opacity: active ? 1 : 0.7 }}>
+                {item.icon}
+              </span>
               {item.label}
             </button>
           )
         })}
-      </nav>
-
-      {/* Status bar */}
-      <div style={{
-        padding: '8px 14px', background: 'var(--bg-subtle)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-            background: isError ? 'var(--danger)' : isFetching ? 'var(--warning)' : 'var(--success)',
-            animation: (!isError && !isFetching) ? 'pulse 2s infinite' : 'none',
-          }} />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {isError ? 'Erro de conexao' : isFetching ? 'Atualizando...' : 'Ao vivo'}
-          </span>
-          {lastUpdate && !isFetching && (
-            <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>
-              {lastUpdate.toLocaleTimeString('pt-BR')}
-            </span>
-          )}
-        </div>
-        <button onClick={onRefresh} disabled={isLoading} style={{
-          background: 'transparent', border: '1px solid var(--border)', borderRadius: 6,
-          padding: '3px 8px', cursor: isLoading ? 'wait' : 'pointer',
-          color: 'var(--text-muted)', fontSize: 11,
-          display: 'flex', alignItems: 'center', gap: 4,
-        }}>
-          <span style={{ display: 'inline-block', animation: isFetching ? 'spin 1s linear infinite' : 'none' }}>↻</span>
-          Atualizar
-        </button>
       </div>
 
-      {/* Stat */}
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
-        <StatCard label="Ônibus no mapa" value={totalBuses} color="var(--accent)" />
-      </div>
+      <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
 
-      {/* Active lines section */}
-      <div style={{ padding: '10px 12px 6px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{
-          fontSize: 10, fontWeight: 700, color: 'var(--text-faint)',
-          textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span>Linhas monitoradas</span>
-          <span style={{ color: 'var(--accent)' }}>{activeLines.length}</span>
-        </div>
-
-        {/* Line chips */}
-        {activeLines.length === 0 ? (
-          <div style={{
-            fontSize: 12, color: 'var(--text-faint)', textAlign: 'center',
-            padding: '10px 0', fontStyle: 'italic',
-          }}>
-            Nenhuma linha ativa
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-            {activeLines.map((linha, i) => {
-              const color = LINE_COLORS[i % LINE_COLORS.length]
-              return (
-                <div
-                  key={linha}
-                  className="animate-fade-in"
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    background: `${color}18`, border: `1px solid ${color}55`,
-                    borderRadius: 8, padding: '4px 8px',
-                  }}
-                >
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  <span style={{
-                    fontFamily: 'JetBrains Mono, monospace', fontSize: 13,
-                    fontWeight: 700, color,
-                  }}>
-                    {linha}
-                  </span>
-                  <button
-                    onClick={() => onRemoveLine(linha)}
-                    title={`Remover linha ${linha}`}
-                    style={{
-                      background: 'transparent', border: 'none', cursor: 'pointer',
-                      color, fontSize: 14, lineHeight: 1, padding: '0 1px',
-                      opacity: 0.7, transition: 'opacity 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
-                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.7' }}
-                  >
-                    ×
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Add line input */}
+      {/* Control Area */}
+      <div style={{ padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Input Add Line */}
         <div style={{ display: 'flex', gap: 6 }}>
           <input
             type="text"
-            placeholder="Adicionar linha..."
+            placeholder="Adicionar linha (ex: 485)"
             value={addInput}
             onChange={e => setAddInput(e.target.value)}
             onKeyDown={handleKey}
             style={{
-              flex: 1, background: 'var(--bg-subtle)',
-              border: '1px solid var(--border)',
-              borderRadius: 8, padding: '6px 10px',
-              color: 'var(--text)', fontFamily: 'DM Sans', fontSize: 12,
-              outline: 'none', minHeight: 32,
+              flex: 1, height: 36, padding: '0 10px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--bg-subtle)',
+              color: 'var(--text)', fontSize: 12, fontWeight: 500, outline: 'none',
             }}
-            onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
           />
           <button
             onClick={handleAdd}
-            title="Adicionar linha"
             style={{
-              background: 'var(--accent)', border: 'none', borderRadius: 8,
-              width: 32, height: 32, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'white', fontSize: 18, flexShrink: 0, transition: 'opacity 0.15s',
+              height: 36, padding: '0 12px', borderRadius: 8,
+              background: 'var(--accent)', color: 'white', border: 'none',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
             }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
           >
-            +
+            Add
+          </button>
+        </div>
+
+        {/* Active Lines Chips */}
+        {activeLines.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {activeLines.map(line => {
+              const color = lineColor(line, activeLines)
+              return (
+                <span
+                  key={line}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '4px 10px', borderRadius: 20,
+                    background: `${color}15`, border: `1px solid ${color}30`,
+                    color: color, fontSize: 11, fontWeight: 700,
+                  }}
+                >
+                  {line}
+                  <button
+                    onClick={() => onRemoveLine(line)}
+                    style={{
+                      border: 'none', background: 'transparent', color: color,
+                      cursor: 'pointer', padding: '0 2px', fontSize: 13,
+                      lineHeight: 1, display: 'flex', alignItems: 'center',
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Info Status / Stats */}
+      <div style={{ padding: '0 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <StatCard label="Filtrados" value={totalBuses} color="var(--accent)" />
+          <StatCard label="Status API" value={isError ? 500 : 200} color={isError ? 'var(--danger)' : 'var(--success)'} />
+        </div>
+
+        {/* Sync Info */}
+        <div style={{
+          background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 8,
+          padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ fontSize: 9, color: 'var(--text-faint)', textTransform: 'uppercase' }}>Sincronização</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, marginTop: 1 }}>
+              {lastUpdate ? lastUpdate.toLocaleTimeString('pt-BR') : '--:--:--'}
+            </div>
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={isLoading || isFetching}
+            title="Atualizar agora"
+            style={{
+              width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)',
+              background: 'transparent', cursor: 'pointer', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              style={{
+                animation: isLoading || isFetching ? 'spin 1s linear infinite' : 'none',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9l1.6 1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M13.5 2v3.5H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Selected bus card */}
+      {/* Selected Bus Panel */}
       {selectedBus && (
         <div className="animate-fade-in" style={{
           margin: '8px 10px', background: 'var(--accent-light)',
@@ -342,7 +303,7 @@ export function Sidebar({
                 {selectedBus.linha}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                {selectedBus.trajeto ?? 'Trajeto nao informado'}
+                {selectedBus.trajeto ?? 'Trajeto não informado'}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 2 }}>
                 Ord: {selectedBus.ordem} · {selectedBus.velocidade.toFixed(0)} km/h

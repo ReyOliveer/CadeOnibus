@@ -3,20 +3,12 @@ import { api } from '../services/api'
 
 const POLL_INTERVAL = 60_000
 
-<<<<<<< Updated upstream
-export function useBuses(linha?: string) {
-=======
 export function useBuses(linha?: string, enabled = true) {
->>>>>>> Stashed changes
   const normalizedLine = linha?.trim() ?? ''
   return useQuery({
     queryKey: ['buses', normalizedLine],
     queryFn: () => api.getBuses(normalizedLine || undefined),
-<<<<<<< Updated upstream
-    refetchInterval: POLL_INTERVAL,
-=======
     refetchInterval: enabled ? POLL_INTERVAL : false,
->>>>>>> Stashed changes
     refetchIntervalInBackground: false,
     staleTime: 55_000,
     retry: 2,

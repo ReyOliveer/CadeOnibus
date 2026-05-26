@@ -60,3 +60,10 @@ $RECYCLE.BIN/
 
 # Claude Code
 .claude/
+
+# Publicação local e arquivos compactados
+publish/
+*.rar
+*.zip
+*.7z
+*.tar.gz

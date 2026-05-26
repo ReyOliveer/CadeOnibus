@@ -267,11 +267,7 @@ public class MobilidadeRioService : IMobilidadeRioService
                     firstRaw.DataHora?.ToString());
             }
 
-<<<<<<< Updated upstream
-            _logger.LogInformation("Recebidos {Total} ônibus da API (após filtro: {Filtrado})",
-=======
             _logger.LogInformation("← API retornou {Total} registros brutos → {Filtrado} ônibus ativos",
->>>>>>> Stashed changes
                 raw.Count, positions.Count);
 
             return positions;
@@ -302,19 +298,6 @@ public class MobilidadeRioService : IMobilidadeRioService
         Trajeto    = raw.Trajeto,
     };
 
-<<<<<<< Updated upstream
-    private static bool IsValidPosition(BusPosition position)
-    {
-        return
-            !string.IsNullOrWhiteSpace(position.Ordem) &&
-            !string.IsNullOrWhiteSpace(position.Linha) &&
-            !double.IsNaN(position.Latitude) &&
-            !double.IsNaN(position.Longitude) &&
-            position.Latitude is >= -90 and <= 90 &&
-            position.Longitude is >= -180 and <= 180 &&
-            !(position.Latitude == 0 && position.Longitude == 0);
-    }
-=======
     private static bool IsValidPosition(BusPosition p) =>
         !string.IsNullOrWhiteSpace(p.Ordem) &&
         !string.IsNullOrWhiteSpace(p.Linha) &&
@@ -325,7 +308,6 @@ public class MobilidadeRioService : IMobilidadeRioService
         !(p.Latitude == 0 && p.Longitude == 0) &&
         p.DataHora != default &&
         p.DataHora <= DateTime.Now.AddMinutes(5);
->>>>>>> Stashed changes
 
     private static double ParseDouble(object? value) => value switch
     {

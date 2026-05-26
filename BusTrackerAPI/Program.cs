@@ -107,4 +107,69 @@ app.MapControllers().RequireRateLimiting("fixed");
 // Isso garante que o React Router funcione em rotas como /mapa, /sobre, etc.
 app.MapFallbackToFile("index.html");
 
-app.Run();
+// Detecta se está rodando no Windows e fora de um contêiner Docker (modo Desktop)
+bool isDesktopMode = OperatingSystem.IsWindows() && 
+                     !string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
+
+if (isDesktopMode)
+{
+    // ── Modo Desktop: Executa o Servidor em Background e abre a janela WebView2 ──
+    var thread = new System.Threading.Thread(() =>
+    {
+        System.Windows.Forms.Application.EnableVisualStyles();
+        System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+
+        var form = new System.Windows.Forms.Form
+        {
+            Text = "CadeÔnibus — Rastreador de Frota RJ",
+            Width = 1280,
+            Height = 768,
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+        };
+
+        var webView = new Microsoft.Web.WebView2.WinForms.WebView2
+        {
+            Dock = System.Windows.Forms.DockStyle.Fill
+        };
+
+        form.Controls.Add(webView);
+
+        form.Load += async (s, e) =>
+        {
+            try
+            {
+                await webView.EnsureCoreWebView2Async(null);
+                webView.Source = new Uri("http://localhost:5000");
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    $"Erro ao carregar o WebView2: {ex.Message}\nCertifique-se de que o Microsoft Edge WebView2 Runtime está instalado no Windows.",
+                    "Erro de Inicialização",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
+        };
+
+        // Ao fechar a janela, solicita o encerramento do Kestrel e da aplicação
+        form.FormClosed += (s, e) =>
+        {
+            var lifetime = app.Services.GetRequiredService<Microsoft.Extensions.Hosting.IHostApplicationLifetime>();
+            lifetime.StopApplication();
+        };
+
+        System.Windows.Forms.Application.Run(form);
+    });
+
+    thread.SetApartmentState(System.Threading.ApartmentState.STA);
+    thread.Start();
+
+    // Roda Kestrel na porta 5000 fixa para o WebView2 local encontrar
+    app.Run("http://localhost:5000");
+}
+else
+{
+    // ── Modo Web/Servidor (Railway, Docker, Linux): Executa o Kestrel padrão ──
+    // Deixar sem argumentos permite que o ASP.NET Core leia as variáveis de ambiente (como PORT ou ASPNETCORE_URLS)
+    app.Run();
+}

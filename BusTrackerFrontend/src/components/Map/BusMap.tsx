@@ -9,10 +9,33 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined
+
+const TILE_LIGHT = MAPBOX_TOKEN
+  ? {
+      url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+      attribution: '© <a href="https://mapbox.com/about/maps">Mapbox</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    }
+  : {
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    }
+
+const TILE_DARK = MAPBOX_TOKEN
+  ? {
+      url: `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+      attribution: '© <a href="https://mapbox.com/about/maps">Mapbox</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    }
+  : {
+      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+    }
+
 interface BusMapProps {
   buses: BusPosition[]
   selectedBus: BusPosition | null
   onSelectBus: (bus: BusPosition | null) => void
+  theme?: 'light' | 'dark'
 }
 
 export interface BusMapHandle {
@@ -90,9 +113,6 @@ function createPopupContent(bus: BusPosition): string {
   `
 }
 
-<<<<<<< Updated upstream
-export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap({ buses, selectedBus, onSelectBus }, ref) {
-=======
 export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
   { buses, selectedBus, onSelectBus, theme = 'light' },
   ref
@@ -106,10 +126,10 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
   })
 
   // Leaflet Refs
->>>>>>> Stashed changes
   const mapRef = useRef<L.Map | null>(null)
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
   const userMarkerRef = useRef<L.CircleMarker | null>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
 
   // Cache de marcadores em memória para reconciliação (CircleMarker para visão macro, Marker com ícone para zoom)
   const leafletMarkersRef = useRef<Map<string, L.Layer>>(new Map())
@@ -154,25 +174,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
 
   // 1. Efeito para inicializar o mapa com renderização preferencial por Canvas (GPU-accelerated)
   useEffect(() => {
-<<<<<<< Updated upstream
-    if (!containerRef.current || mapRef.current) return
-    const map = L.map(containerRef.current, { center: [-22.9068, -43.1729], zoom: 12 })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map)
-    const group = L.layerGroup().addTo(map)
-    layerGroupRef.current = group
-    mapRef.current = map
-    return () => {
-      map.remove()
-      mapRef.current = null
-      layerGroupRef.current = null
-      userMarkerRef.current = null
-    }
-  }, [])
-
-=======
     if (!leafletContainerRef.current) return
 
     // Limpar qualquer instância existente
@@ -184,8 +185,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
       leafletMarkersRef.current.clear()
     }
 
-    // preferCanvas: true instrui o Leaflet a renderizar todos os CircleMarkers em um único elemento HTML5 Canvas
-    // usando aceleração por hardware da GPU, garantindo performance extrema de 60fps com +3000 ônibus ativos.
     const map = L.map(leafletContainerRef.current, {
       center: [-22.9068, -43.1729],
       zoom: 12,
@@ -208,11 +207,8 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
       })
     }
 
-    // Define estado inicial
     updateMapState()
 
-    // Otimização: moveend e zoomend garantem que a atualização do estado só ocorra após
-    // o término da transição, mantendo o pan/zoom fluido.
     map.on('zoomend moveend', updateMapState)
 
     return () => {
@@ -239,7 +235,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
   }, [theme])
 
   // 2. Efeito de reconciliação de marcadores sobre o Canvas/DOM
->>>>>>> Stashed changes
   useEffect(() => {
     const map = mapRef.current
     const group = layerGroupRef.current
@@ -256,10 +251,8 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
 
       const order = bus.ordem
 
-      // Se o usuário está em zoom detalhado, filtramos para exibir APENAS ônibus dentro da área visível na tela.
-      // Isso reduz o consumo do DOM de 3500 ônibus para apenas alguns poucos e elimina completamente qualquer lag!
+      // Viewport bounds culling (para performance extrema)
       if (needsMarkerIcon && bounds && !bounds.contains([lat, lng])) {
-        // Se este ônibus já tinha um marcador na tela e saiu, removemos ele
         const existingMarker = leafletMarkersRef.current.get(order)
         if (existingMarker) {
           group.removeLayer(existingMarker)
@@ -275,7 +268,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
 
       const existingMarker = leafletMarkersRef.current.get(order)
 
-      // Se o tipo do marcador na memória for incompatível com a visualização atual, destruímos para criar o correto
       if (existingMarker) {
         const isCircle = existingMarker instanceof L.CircleMarker
         const wantCircle = !needsMarkerIcon
@@ -288,7 +280,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
       const updatedMarker = leafletMarkersRef.current.get(order)
 
       if (updatedMarker) {
-        // Reconcilia e atualiza as propriedades do marcador em lote (alta performance)
         updatedMarker.setPopupContent(popupContent)
 
         if (updatedMarker instanceof L.CircleMarker) {
@@ -303,7 +294,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
           updatedMarker.setIcon(createBusIcon(bus))
         }
 
-        // Controlar Tooltips elegantes condicionalmente
         const hasTooltip = updatedMarker.getTooltip() !== undefined
         if (zoom >= 14) {
           if (!hasTooltip) {
@@ -322,16 +312,13 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
           }
         }
       } else {
-        // Criar novo marcador adequado ao zoom
         if (needsMarkerIcon) {
-          // Criar Marcador com ícone SVG de ônibus do CadeOnibus
           const marker = L.marker(position, {
             icon: createBusIcon(bus)
           })
           marker.bindPopup(popupContent, { maxWidth: 260, className: 'bus-popup' })
           marker.on('click', () => onSelectBus(bus))
 
-          // Bind Tooltip com o número da linha
           marker.bindTooltip(bus.linha, {
             permanent: true,
             direction: 'right',
@@ -342,7 +329,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
           group.addLayer(marker)
           leafletMarkersRef.current.set(order, marker)
         } else {
-          // Criar CircleMarker no Canvas (visão macro veloz)
           const size = bus.emMovimento ? 7 : 5
           const marker = L.circleMarker(position, {
             radius: size,
@@ -369,7 +355,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
       }
     })
 
-    // Remover ônibus que saíram de circulação ou saíram da tela
     leafletMarkersRef.current.forEach((marker, order) => {
       if (!currentBuses.has(order)) {
         group.removeLayer(marker)
@@ -388,7 +373,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
     
     map.flyTo([lat, lng], 16, { duration: 1.2, easeLinearity: 0.35 })
 
-    // Abre o popup correspondente automaticamente
     const marker = leafletMarkersRef.current.get(selectedBus.ordem)
     if (marker) {
       marker.openPopup()

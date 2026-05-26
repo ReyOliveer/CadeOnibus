@@ -57,11 +57,11 @@ export function BusFilterOverlay({
         style={{
           width: '100%',
           maxWidth: 480,
-          background: 'rgba(255, 255, 255, 0.92)',
-          border: '1px solid rgba(255, 255, 255, 0.6)',
+          background: 'var(--bg)',
+          border: '1px solid var(--border)',
           borderRadius: 16,
           padding: '30px 24px',
-          boxShadow: '0 20px 40px rgba(15, 23, 42, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
+          boxShadow: '0 20px 40px rgba(15, 23, 42, 0.15)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -128,7 +128,7 @@ export function BusFilterOverlay({
               onChange={(e) => setSearchValue(e.target.value)}
               style={{
                 flex: 1,
-                background: '#ffffff',
+                background: 'var(--bg-subtle)',
                 border: '1px solid var(--border)',
                 borderRadius: 10,
                 padding: '0 16px',

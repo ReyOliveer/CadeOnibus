@@ -22,7 +22,7 @@ export function TopBar({ lineFilter, totalShown, isLoading, onRefresh, buses }: 
   return (
     <div style={{
       position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
-      zIndex: 1000, background: 'white', borderRadius: 8,
+      zIndex: 1000, background: 'var(--bg)', borderRadius: 8,
       border: '1px solid var(--border)', padding: '7px 14px',
       display: 'flex', alignItems: 'center', gap: 14,
       boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
