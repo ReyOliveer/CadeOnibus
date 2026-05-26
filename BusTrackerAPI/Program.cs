@@ -107,9 +107,9 @@ app.MapControllers().RequireRateLimiting("fixed");
 // Isso garante que o React Router funcione em rotas como /mapa, /sobre, etc.
 app.MapFallbackToFile("index.html");
 
+#if DESKTOP
 // Detecta se está rodando no Windows e fora de um contêiner Docker (modo Desktop)
-bool isDesktopMode = OperatingSystem.IsWindows() && 
-                     !string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
+bool isDesktopMode = !string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
 
 if (isDesktopMode)
 {
@@ -170,6 +170,10 @@ if (isDesktopMode)
 else
 {
     // ── Modo Web/Servidor (Railway, Docker, Linux): Executa o Kestrel padrão ──
-    // Deixar sem argumentos permite que o ASP.NET Core leia as variáveis de ambiente (como PORT ou ASPNETCORE_URLS)
     app.Run();
 }
+#else
+// ── Modo Web/Servidor (Railway, Docker, Linux): Executa o Kestrel padrão ──
+// Deixar sem argumentos permite que o ASP.NET Core leia as variáveis de ambiente (como PORT ou ASPNETCORE_URLS)
+app.Run();
+#endif
