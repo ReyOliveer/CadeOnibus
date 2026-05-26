@@ -346,9 +346,12 @@ public class MobilidadeRioService : IMobilidadeRioService
         if (unix <= 0) return RioNow;
         try
         {
-            return unix > 253_402_300_799
-                ? DateTimeOffset.FromUnixTimeMilliseconds(unix).LocalDateTime
-                : DateTimeOffset.FromUnixTimeSeconds(unix).LocalDateTime;
+            var utc = unix > 253_402_300_799
+                ? DateTimeOffset.FromUnixTimeMilliseconds(unix).UtcDateTime
+                : DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime;
+
+            // Converte o horário UTC da telemetria para o fuso do Rio de Janeiro (UTC-3)
+            return utc.AddHours(-3);
         }
         catch (ArgumentOutOfRangeException) { return RioNow; }
     }
