@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>BusTrackerAPI</RootNamespace>
+    <!-- Permite restaurar dependências do Windows no Linux sem gerar erro do SDK -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <!-- Configurações específicas para o executável de Desktop (Windows) -->

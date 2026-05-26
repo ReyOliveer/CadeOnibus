@@ -10,7 +10,7 @@ RUN npm run build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS backend-builder
 WORKDIR /app
 COPY BusTrackerAPI/*.csproj ./BusTrackerAPI/
-RUN dotnet restore ./BusTrackerAPI/BusTrackerAPI.csproj
+RUN dotnet restore ./BusTrackerAPI/BusTrackerAPI.csproj -p:TargetFrameworks=net8.0
 COPY BusTrackerAPI/ ./BusTrackerAPI/
 # Copia o build do frontend gerado no estágio anterior para o wwwroot do backend
 COPY --from=frontend-builder /app/BusTrackerAPI/wwwroot/ ./BusTrackerAPI/wwwroot/
