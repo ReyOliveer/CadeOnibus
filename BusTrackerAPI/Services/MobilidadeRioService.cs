@@ -20,6 +20,8 @@ public class MobilidadeRioService : IMobilidadeRioService
     private const string CacheKeyAllBuses = "buses:all";
     private const string CacheKeyLines    = "buses:lines";
 
+    private static DateTime RioNow => DateTime.UtcNow.AddHours(-3);
+
     // Garante que apenas UMA chamada externa ocorre por vez no caso de cache miss inicial.
     private static readonly SemaphoreSlim _fetchLock = new(1, 1);
 
@@ -109,7 +111,7 @@ public class MobilidadeRioService : IMobilidadeRioService
             return 0;
         }
 
-        var now = DateTime.Now;
+        var now = RioNow;
         var twoMinutesAgo = now.AddMinutes(-2);
         var futureLimit = now.AddMinutes(1);
 
@@ -224,7 +226,7 @@ public class MobilidadeRioService : IMobilidadeRioService
 
     private async Task<List<BusPosition>> FetchFromApiAsync(CancellationToken ct)
     {
-        var dataFinal = DateTime.Now;
+        var dataFinal = RioNow;
         var dataInicial = dataFinal.AddMinutes(-_options.JanelaTempoMinutos);
 
         var dataInicialStr = dataInicial.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
@@ -307,7 +309,7 @@ public class MobilidadeRioService : IMobilidadeRioService
         p.Longitude is >= -180 and <= 180 &&
         !(p.Latitude == 0 && p.Longitude == 0) &&
         p.DataHora != default &&
-        p.DataHora <= DateTime.Now.AddMinutes(5);
+        p.DataHora <= RioNow.AddMinutes(5);
 
     private static double ParseDouble(object? value) => value switch
     {
@@ -325,7 +327,7 @@ public class MobilidadeRioService : IMobilidadeRioService
 
     private static DateTime ParseDataHora(object? value) => value switch
     {
-        null    => DateTime.Now,
+        null    => RioNow,
         long    v => ParseUnix(v),
         int     v => ParseUnix(v),
         double  v => ParseUnix((long)v),
@@ -336,18 +338,18 @@ public class MobilidadeRioService : IMobilidadeRioService
         string s when DateTime.TryParseExact(s, "yyyy-MM-dd HH:mm:ss",
             CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) => dt,
         string s when DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) => dt,
-        _ => DateTime.Now
+        _ => RioNow
     };
 
     private static DateTime ParseUnix(long unix)
     {
-        if (unix <= 0) return DateTime.Now;
+        if (unix <= 0) return RioNow;
         try
         {
             return unix > 253_402_300_799
                 ? DateTimeOffset.FromUnixTimeMilliseconds(unix).LocalDateTime
                 : DateTimeOffset.FromUnixTimeSeconds(unix).LocalDateTime;
         }
-        catch (ArgumentOutOfRangeException) { return DateTime.Now; }
+        catch (ArgumentOutOfRangeException) { return RioNow; }
     }
 }
