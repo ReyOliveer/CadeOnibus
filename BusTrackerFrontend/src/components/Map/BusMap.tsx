@@ -1,39 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import L from 'leaflet'
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import type { BusPosition } from '../../types'
 import { velocidadeCor, sentidoLabel, formatDataHora } from '../../types'
 
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
-
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined
-
-const TILE_LIGHT = MAPBOX_TOKEN
-  ? {
-      url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
-      attribution: '© <a href="https://mapbox.com/about/maps">Mapbox</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      subdomains: ['a', 'b', 'c']
-    }
-  : {
-      url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      attribution: '© <a href="https://maps.google.com">Google Maps</a>',
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-    }
-
-const TILE_DARK = MAPBOX_TOKEN
-  ? {
-      url: `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
-      attribution: '© <a href="https://mapbox.com/about/maps">Mapbox</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      subdomains: ['a', 'b', 'c']
-    }
-  : {
-      url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', // y = Híbrido (Satélite + Ruas/Rótulos)
-      attribution: '© <a href="https://maps.google.com">Google Maps</a>',
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-    }
+mapboxgl.accessToken = MAPBOX_TOKEN || ''
 
 interface BusMapProps {
   buses: BusPosition[]
@@ -46,11 +18,17 @@ export interface BusMapHandle {
   locateUser: () => void
 }
 
-function createBusIcon(bus: BusPosition): L.DivIcon {
+function updateMarkerElement(el: HTMLDivElement, bus: BusPosition, isDetailed: boolean) {
   const cor = velocidadeCor(bus.velocidade)
-  const size = bus.emMovimento ? 30 : 24
-  return L.divIcon({
-    html: `
+  if (isDetailed) {
+    const size = bus.emMovimento ? 30 : 24
+    el.className = 'bus-marker-detailed'
+    el.style.width = 'auto'
+    el.style.height = 'auto'
+    el.style.display = 'flex'
+    el.style.alignItems = 'center'
+    el.style.cursor = 'pointer'
+    el.innerHTML = `
       <div style="position:relative;width:${size}px;height:${size}px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2))">
         <svg width="${size}" height="${size}" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="3" y="5" width="24" height="16" rx="4" fill="${cor}"/>
@@ -67,19 +45,27 @@ function createBusIcon(bus: BusPosition): L.DivIcon {
           background:#16a34a;border:1.5px solid white;
         "></div>` : ''}
       </div>
-    `,
-    className: '',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2) - 4],
-  })
+      <div class="bus-label animate-fade-in" style="margin-left: 6px; pointer-events: none;">${bus.linha}</div>
+    `
+  } else {
+    const size = bus.emMovimento ? 12 : 9
+    el.className = 'bus-marker-dot'
+    el.style.width = `${size}px`
+    el.style.height = `${size}px`
+    el.style.borderRadius = '50%'
+    el.style.backgroundColor = cor
+    el.style.border = '1.5px solid #ffffff'
+    el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)'
+    el.style.cursor = 'pointer'
+    el.innerHTML = ''
+  }
 }
 
 function createPopupContent(bus: BusPosition): string {
   const cor = velocidadeCor(bus.velocidade)
   const sentido = sentidoLabel(bus.sentido)
   return `
-    <div style="font-family:'DM Sans',sans-serif;padding:14px 16px;min-width:210px;">
+    <div style="font-family:'DM Sans',sans-serif;padding:14px 16px;min-width:210px;color:var(--text);">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
         <div style="
           color:white;font-size:18px;font-weight:700;
@@ -87,25 +73,25 @@ function createPopupContent(bus: BusPosition): string {
           font-family:monospace;letter-spacing:1px;
         ">${bus.linha}</div>
         <div>
-          <div style="font-size:13px;font-weight:600;color:#0f172a;">${bus.trajeto ?? 'Trajeto não informado'}</div>
-          <div style="font-size:11px;color:#64748b;margin-top:1px;">Ordem: ${bus.ordem}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${bus.trajeto ?? 'Trajeto não informado'}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">Ordem: ${bus.ordem}</div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-        <div style="background:#f0f4f8;border-radius:8px;padding:8px;">
-          <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;">Velocidade</div>
+        <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:8px;padding:8px;">
+          <div style="font-size:9px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.5px;">Velocidade</div>
           <div style="color:${cor};font-size:16px;font-weight:700;font-family:monospace;margin-top:2px;">
-            ${bus.velocidade.toFixed(0)}<span style="font-size:10px;color:#94a3b8;font-weight:400"> km/h</span>
+            ${bus.velocidade.toFixed(0)}<span style="font-size:10px;color:var(--text-faint);font-weight:400"> km/h</span>
           </div>
         </div>
-        <div style="background:#f0f4f8;border-radius:8px;padding:8px;">
-          <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;">Sentido</div>
-          <div style="font-size:14px;font-weight:600;color:#0f172a;margin-top:2px;">${sentido}</div>
+        <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:8px;padding:8px;">
+          <div style="font-size:9px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.5px;">Sentido</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:2px;">${sentido}</div>
         </div>
       </div>
-      <div style="border-top:1px solid #e2e8f0;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:11px;color:#94a3b8;">Última posição</span>
-        <span style="font-size:11px;color:#64748b;font-family:monospace;">${formatDataHora(bus.dataHora)}</span>
+      <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;color:var(--text-faint);">Última posição</span>
+        <span style="font-size:11px;color:var(--text-muted);font-family:monospace;">${formatDataHora(bus.dataHora)}</span>
       </div>
       <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
         <div style="width:7px;height:7px;border-radius:50%;background:${bus.emMovimento ? '#16a34a' : '#94a3b8'};"></div>
@@ -121,22 +107,20 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
   { buses, selectedBus, onSelectBus, theme = 'light' },
   ref
 ) {
-  const leafletContainerRef = useRef<HTMLDivElement>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<mapboxgl.Map | null>(null)
+  const userMarkerRef = useRef<mapboxgl.Marker | null>(null)
+  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
   
-  // Rastreia zoom e bounds do mapa para renderização condicional e filtro de viewport
-  const [mapState, setMapState] = useState<{ zoom: number; bounds: L.LatLngBounds | null }>({
+  const [mapState, setMapState] = useState<{ zoom: number; bounds: mapboxgl.LngLatBounds | null }>({
     zoom: 12,
     bounds: null,
   })
 
-  // Leaflet Refs
-  const mapRef = useRef<L.Map | null>(null)
-  const layerGroupRef = useRef<L.LayerGroup | null>(null)
-  const userMarkerRef = useRef<L.CircleMarker | null>(null)
-  const tileLayerRef = useRef<L.TileLayer | null>(null)
-
-  // Cache de marcadores em memória para reconciliação (CircleMarker para visão macro, Marker com ícone para zoom)
-  const leafletMarkersRef = useRef<Map<string, L.Layer>>(new Map())
+  const onSelectBusRef = useRef(onSelectBus)
+  useEffect(() => {
+    onSelectBusRef.current = onSelectBus
+  }, [onSelectBus])
 
   // Expor locateUser para o componente pai
   useImperativeHandle(ref, () => ({
@@ -147,23 +131,30 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
         ({ coords }) => {
           const map = mapRef.current
           if (!map) return
-          const leafletPos: L.LatLngExpression = [coords.latitude, coords.longitude]
+          const pos: [number, number] = [coords.longitude, coords.latitude]
 
           if (userMarkerRef.current) {
-            userMarkerRef.current.setLatLng(leafletPos)
+            userMarkerRef.current.setLngLat(pos)
           } else {
-            userMarkerRef.current = L.circleMarker(leafletPos, {
-              radius: 9,
-              color: '#ffffff',
-              weight: 3,
-              fillColor: '#2563eb',
-              fillOpacity: 1,
-            }).addTo(map)
+            const el = document.createElement('div')
+            el.className = 'user-location-marker'
+            el.style.width = '18px'
+            el.style.height = '18px'
+            el.style.borderRadius = '50%'
+            el.style.backgroundColor = '#2563eb'
+            el.style.border = '3px solid #ffffff'
+            el.style.boxShadow = '0 0 10px rgba(37, 99, 235, 0.5)'
+
+            userMarkerRef.current = new mapboxgl.Marker({ element: el })
+              .setLngLat(pos)
+              .addTo(map)
           }
 
-          map.flyTo(leafletPos, Math.max(map.getZoom(), 15), {
-            duration: 1.2,
-            easeLinearity: 0.35,
+          map.flyTo({
+            center: pos,
+            zoom: Math.max(map.getZoom(), 15),
+            duration: 1200,
+            essential: true
           })
         },
         () => undefined,
@@ -176,36 +167,20 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
     },
   }))
 
-  // 1. Efeito para inicializar o mapa com renderização preferencial por Canvas (GPU-accelerated)
+  // 1. Inicializar o mapa
   useEffect(() => {
-    if (!leafletContainerRef.current) return
+    if (!MAPBOX_TOKEN || !mapContainerRef.current) return
 
-    // Limpar qualquer instância existente
-    if (mapRef.current) {
-      mapRef.current.remove()
-      mapRef.current = null
-      layerGroupRef.current = null
-      userMarkerRef.current = null
-      leafletMarkersRef.current.clear()
-    }
-
-    const map = L.map(leafletContainerRef.current, {
-      center: [-22.9068, -43.1729],
+    const mapStyle = theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12'
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: mapStyle,
+      center: [-43.1729, -22.9068], // Rio de Janeiro [lng, lat]
       zoom: 12,
-      preferCanvas: true,
     })
 
-    const config = theme === 'dark' ? TILE_DARK : TILE_LIGHT
-    const tile = L.tileLayer(config.url, {
-      attribution: config.attribution,
-      maxZoom: 20,
-      subdomains: config.subdomains
-    })
-    tile.addTo(map)
-    tileLayerRef.current = tile
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
 
-    const group = L.layerGroup().addTo(map)
-    layerGroupRef.current = group
     mapRef.current = map
 
     const updateMapState = () => {
@@ -215,45 +190,35 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
       })
     }
 
-    updateMapState()
-
-    map.on('zoomend moveend', updateMapState)
+    map.on('load', updateMapState)
+    map.on('zoomend', updateMapState)
+    map.on('moveend', updateMapState)
 
     return () => {
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
-        layerGroupRef.current = null
         userMarkerRef.current = null
-        leafletMarkersRef.current.clear()
+        markersRef.current.clear()
       }
     }
   }, [])
 
-  // Troca o tile layer ao mudar o tema
+  // Atualizar tema do mapa dinamicamente
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    const config = theme === 'dark' ? TILE_DARK : TILE_LIGHT
-    if (tileLayerRef.current) {
-      tileLayerRef.current.remove()
-    }
-    tileLayerRef.current = L.tileLayer(config.url, {
-      attribution: config.attribution,
-      maxZoom: 20,
-      subdomains: config.subdomains
-    })
-    tileLayerRef.current.addTo(map)
+    const mapStyle = theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12'
+    map.setStyle(mapStyle)
   }, [theme])
 
-  // 2. Efeito de reconciliação de marcadores sobre o Canvas/DOM
+  // 2. Reconciliação dos marcadores de ônibus
   useEffect(() => {
     const map = mapRef.current
-    const group = layerGroupRef.current
-    if (!map || !group) return
+    if (!map) return
 
-    const { zoom, bounds } = mapState
-    const needsMarkerIcon = zoom >= 14
+    const { zoom: currentZoom, bounds } = mapState
+    const needsMarkerIcon = currentZoom >= 14
     const currentBuses = new Set<string>()
 
     buses.forEach((bus) => {
@@ -263,119 +228,67 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
 
       const order = bus.ordem
 
-      // Viewport bounds culling (para performance extrema)
-      if (needsMarkerIcon && bounds && !bounds.contains([lat, lng])) {
-        const existingMarker = leafletMarkersRef.current.get(order)
+      // Viewport bounds culling
+      if (needsMarkerIcon && bounds && !bounds.contains([lng, lat])) {
+        const existingMarker = markersRef.current.get(order)
         if (existingMarker) {
-          group.removeLayer(existingMarker)
-          leafletMarkersRef.current.delete(order)
+          existingMarker.remove()
+          markersRef.current.delete(order)
         }
         return
       }
 
       currentBuses.add(order)
-      const position: L.LatLngExpression = [lat, lng]
-      const cor = velocidadeCor(bus.velocidade)
+      const position: [number, number] = [lng, lat]
       const popupContent = createPopupContent(bus)
 
-      const existingMarker = leafletMarkersRef.current.get(order)
+      let marker = markersRef.current.get(order)
 
-      if (existingMarker) {
-        const isCircle = existingMarker instanceof L.CircleMarker
-        const wantCircle = !needsMarkerIcon
-        if (isCircle !== wantCircle) {
-          group.removeLayer(existingMarker)
-          leafletMarkersRef.current.delete(order)
-        }
-      }
-
-      const updatedMarker = leafletMarkersRef.current.get(order)
-
-      if (updatedMarker) {
-        updatedMarker.setPopupContent(popupContent)
-
-        if (updatedMarker instanceof L.CircleMarker) {
-          const size = bus.emMovimento ? 7 : 5
-          updatedMarker.setLatLng(position)
-          updatedMarker.setStyle({
-            fillColor: cor,
-            radius: size,
-          })
-        } else if (updatedMarker instanceof L.Marker) {
-          updatedMarker.setLatLng(position)
-          updatedMarker.setIcon(createBusIcon(bus))
+      if (marker) {
+        marker.setLngLat(position)
+        
+        const popup = marker.getPopup()
+        if (popup) {
+          popup.setHTML(popupContent)
         }
 
-        const hasTooltip = updatedMarker.getTooltip() !== undefined
-        if (zoom >= 14) {
-          if (!hasTooltip) {
-            updatedMarker.bindTooltip(bus.linha, {
-              permanent: true,
-              direction: 'right',
-              className: 'bus-label',
-              offset: needsMarkerIcon ? [12, -4] : [6, 0],
-            })
-          } else {
-            updatedMarker.setTooltipContent(bus.linha)
-          }
-        } else {
-          if (hasTooltip) {
-            updatedMarker.unbindTooltip()
-          }
-        }
+        const el = marker.getElement() as HTMLDivElement
+        updateMarkerElement(el, bus, needsMarkerIcon)
+        ;(el as any)._bus = bus
       } else {
-        if (needsMarkerIcon) {
-          const marker = L.marker(position, {
-            icon: createBusIcon(bus)
-          })
-          marker.bindPopup(popupContent, { maxWidth: 260, className: 'bus-popup' })
-          marker.on('click', () => onSelectBus(bus))
+        const el = document.createElement('div')
+        updateMarkerElement(el, bus, needsMarkerIcon)
+        ;(el as any)._bus = bus
 
-          marker.bindTooltip(bus.linha, {
-            permanent: true,
-            direction: 'right',
-            className: 'bus-label',
-            offset: [12, -4],
-          })
-
-          group.addLayer(marker)
-          leafletMarkersRef.current.set(order, marker)
-        } else {
-          const size = bus.emMovimento ? 7 : 5
-          const marker = L.circleMarker(position, {
-            radius: size,
-            color: '#ffffff',
-            weight: 1.5,
-            fillColor: cor,
-            fillOpacity: 0.95,
-          })
-          marker.bindPopup(popupContent, { maxWidth: 260, className: 'bus-popup' })
-          marker.on('click', () => onSelectBus(bus))
-
-          if (zoom >= 14) {
-            marker.bindTooltip(bus.linha, {
-              permanent: true,
-              direction: 'right',
-              className: 'bus-label',
-              offset: [6, 0],
-            })
+        el.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const currentBus = (el as any)._bus
+          if (currentBus) {
+            onSelectBusRef.current(currentBus)
           }
+        })
 
-          group.addLayer(marker)
-          leafletMarkersRef.current.set(order, marker)
-        }
+        const popup = new mapboxgl.Popup({ offset: 25, className: 'bus-popup' })
+          .setHTML(popupContent)
+
+        marker = new mapboxgl.Marker({ element: el })
+          .setLngLat(position)
+          .setPopup(popup)
+          .addTo(map)
+
+        markersRef.current.set(order, marker)
       }
     })
 
-    leafletMarkersRef.current.forEach((marker, order) => {
+    markersRef.current.forEach((marker, order) => {
       if (!currentBuses.has(order)) {
-        group.removeLayer(marker)
-        leafletMarkersRef.current.delete(order)
+        marker.remove()
+        markersRef.current.delete(order)
       }
     })
-  }, [buses, onSelectBus, mapState])
+  }, [buses, mapState])
 
-  // 3. Efeito para voar para o ônibus selecionado
+  // 3. Foco no ônibus selecionado
   useEffect(() => {
     const map = mapRef.current
     if (!map || !selectedBus) return
@@ -383,17 +296,43 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
     const lng = typeof selectedBus.longitude === 'string' ? parseFloat(selectedBus.longitude) : selectedBus.longitude
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) return
     
-    map.flyTo([lat, lng], 16, { duration: 1.2, easeLinearity: 0.35 })
+    map.flyTo({
+      center: [lng, lat],
+      zoom: 16,
+      duration: 1200,
+      essential: true
+    })
 
-    const marker = leafletMarkersRef.current.get(selectedBus.ordem)
+    const marker = markersRef.current.get(selectedBus.ordem)
     if (marker) {
-      marker.openPopup()
+      const popup = marker.getPopup()
+      if (popup && !popup.isOpen()) {
+        marker.togglePopup()
+      }
     }
   }, [selectedBus])
 
+  if (!MAPBOX_TOKEN) {
+    return (
+      <div style={{
+        width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg)', color: 'var(--text-muted)', padding: 20, textAlign: 'center'
+      }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--danger)' }}>
+            Token do Mapbox Ausente
+          </div>
+          <div style={{ fontSize: 14 }}>
+            Verifique se a variável <strong>VITE_MAPBOX_TOKEN</strong> está configurada no seu arquivo <code>.env</code>.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <div ref={leafletContainerRef} style={{ width: '100%', height: '100%' }} />
+      <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
     </div>
   )
 })
