@@ -111,7 +111,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
-  const currentRouteRef = useRef<any>(null)
   
   const [mapState, setMapState] = useState<{ zoom: number; bounds: mapboxgl.LngLatBounds | null }>({
     zoom: 12,
@@ -191,37 +190,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
       })
     }
 
-    // Configurar camada da rota do ônibus sempre que o estilo for carregado (evita sumir no style change)
-    const setupRouteLayer = () => {
-      if (!map.getSource('bus-route-source')) {
-        map.addSource('bus-route-source', {
-          type: 'geojson',
-          data: currentRouteRef.current || {
-            type: 'FeatureCollection',
-            features: []
-          }
-        })
-      }
-
-      if (!map.getLayer('bus-route-layer')) {
-        map.addLayer({
-          id: 'bus-route-layer',
-          type: 'line',
-          source: 'bus-route-source',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#2563eb', // Azul royal
-            'line-width': 5,
-            'line-opacity': 0.65
-          }
-        })
-      }
-    }
-
-    map.on('style.load', setupRouteLayer)
     map.on('load', updateMapState)
     map.on('zoomend', updateMapState)
     map.on('moveend', updateMapState)
@@ -343,53 +311,6 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
       }
     }
   }, [selectedBus])
-
-  // 4. Carregamento e desenho dinâmico da rota do ônibus selecionado
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-
-    const updateRouteOnMap = (geojsonData: any) => {
-      currentRouteRef.current = geojsonData
-      const source = map.getSource('bus-route-source') as mapboxgl.GeoJSONSource
-      if (source) {
-        source.setData(geojsonData || {
-          type: 'FeatureCollection',
-          features: []
-        })
-      }
-    }
-
-    if (!selectedBus) {
-      updateRouteOnMap(null)
-      return
-    }
-
-    fetch(`/routes/${selectedBus.linha}.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Rota não cadastrada')
-        return res.json()
-      })
-      .then((data) => {
-        const sentido = selectedBus.sentido === 'V' ? 'V' : 'I'
-        const routeFeature = data[sentido]
-
-        if (routeFeature) {
-          updateRouteOnMap(routeFeature)
-        } else {
-          const fallbackFeature = data['I'] || data['V']
-          if (fallbackFeature) {
-            updateRouteOnMap(fallbackFeature)
-          } else {
-            updateRouteOnMap(null)
-          }
-        }
-      })
-      .catch(() => {
-        // Se a rota falhar/não existir, limpa a linha de forma silenciosa
-        updateRouteOnMap(null)
-      })
-  }, [selectedBus, selectedBus?.sentido])
 
   if (!MAPBOX_TOKEN) {
     return (
