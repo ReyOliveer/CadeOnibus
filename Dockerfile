@@ -4,6 +4,8 @@ WORKDIR /app/BusTrackerFrontend
 COPY BusTrackerFrontend/package*.json ./
 RUN npm install
 COPY BusTrackerFrontend/ ./
+ARG VITE_MAPBOX_TOKEN
+ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
 RUN npm run build
 
 # Estágio 2: Compilação do Backend .NET 8
