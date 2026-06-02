@@ -15,20 +15,24 @@ const TILE_LIGHT = MAPBOX_TOKEN
   ? {
       url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
       attribution: '© <a href="https://mapbox.com/about/maps">Mapbox</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      subdomains: ['a', 'b', 'c']
     }
   : {
-      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      attribution: '© <a href="https://maps.google.com">Google Maps</a>',
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }
 
 const TILE_DARK = MAPBOX_TOKEN
   ? {
       url: `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
       attribution: '© <a href="https://mapbox.com/about/maps">Mapbox</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      subdomains: ['a', 'b', 'c']
     }
   : {
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+      url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', // y = Híbrido (Satélite + Ruas/Rótulos)
+      attribution: '© <a href="https://maps.google.com">Google Maps</a>',
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }
 
 interface BusMapProps {
@@ -192,7 +196,11 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
     })
 
     const config = theme === 'dark' ? TILE_DARK : TILE_LIGHT
-    const tile = L.tileLayer(config.url, { attribution: config.attribution, maxZoom: 19 })
+    const tile = L.tileLayer(config.url, {
+      attribution: config.attribution,
+      maxZoom: 20,
+      subdomains: config.subdomains
+    })
     tile.addTo(map)
     tileLayerRef.current = tile
 
@@ -230,7 +238,11 @@ export const BusMap = forwardRef<BusMapHandle, BusMapProps>(function BusMap(
     if (tileLayerRef.current) {
       tileLayerRef.current.remove()
     }
-    tileLayerRef.current = L.tileLayer(config.url, { attribution: config.attribution, maxZoom: 19 })
+    tileLayerRef.current = L.tileLayer(config.url, {
+      attribution: config.attribution,
+      maxZoom: 20,
+      subdomains: config.subdomains
+    })
     tileLayerRef.current.addTo(map)
   }, [theme])
 
