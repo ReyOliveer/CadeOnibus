@@ -10,11 +10,11 @@ RUN npm run build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS backend-builder
 WORKDIR /app
 COPY BusTrackerAPI/*.csproj ./BusTrackerAPI/
-RUN dotnet restore ./BusTrackerAPI/BusTrackerAPI.csproj -p:TargetFrameworks=net8.0
+RUN dotnet restore ./BusTrackerAPI/BusTrackerAPI.csproj
 COPY BusTrackerAPI/ ./BusTrackerAPI/
 # Copia o build do frontend gerado no estágio anterior para o wwwroot do backend
 COPY --from=frontend-builder /app/BusTrackerAPI/wwwroot/ ./BusTrackerAPI/wwwroot/
-RUN dotnet publish ./BusTrackerAPI/BusTrackerAPI.csproj -c Release -f net8.0 -o /app/publish
+RUN dotnet publish ./BusTrackerAPI/BusTrackerAPI.csproj -c Release -o /app/publish
 
 # Estágio 3: Contêiner de Execução (Runtime)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime

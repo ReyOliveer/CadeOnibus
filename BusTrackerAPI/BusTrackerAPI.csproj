@@ -1,30 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <!-- Multi-targeting: net8.0 (Linux/Docker) e net8.0-windows (Windows Desktop App) -->
-    <TargetFrameworks>net8.0;net8.0-windows</TargetFrameworks>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>BusTrackerAPI</RootNamespace>
-    <!-- Permite restaurar dependências do Windows no Linux sem gerar erro do SDK -->
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
-  </PropertyGroup>
-
-  <!-- Configurações específicas para o executável de Desktop (Windows) -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
-    <OutputType>WinExe</OutputType>
-    <UseWindowsForms>true</UseWindowsForms>
-    <DefineConstants>DESKTOP</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.4" />
-  </ItemGroup>
-
-  <!-- WebView2 é necessário apenas para o aplicativo Windows Desktop -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2478.35" />
   </ItemGroup>
 
 </Project>
