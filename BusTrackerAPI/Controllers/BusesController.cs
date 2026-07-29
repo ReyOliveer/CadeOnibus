@@ -11,18 +11,15 @@ public class BusesController : ControllerBase
 {
     private readonly IBusService _busService;
     private readonly IMobilidadeRioService _mobilidadeService;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<BusesController> _logger;
 
     public BusesController(
         IBusService busService,
         IMobilidadeRioService mobilidadeService,
-        IConfiguration configuration,
         ILogger<BusesController> logger)
     {
         _busService = busService;
         _mobilidadeService = mobilidadeService;
-        _configuration = configuration;
         _logger = logger;
     }
 
@@ -134,22 +131,6 @@ public class BusesController : ControllerBase
         {
             _logger.LogError(ex, "Erro ao processar ingestão externa de ônibus");
             return StatusCode(500, new ErrorResponseDto("Erro interno ao processar a ingestão de ônibus.", ex.Message, 500));
-        }
-    }
-
-    /// <summary>Retorna as configurações públicas necessárias para o funcionamento do frontend.</summary>
-    [HttpGet("config")]
-    public IActionResult GetConfig()
-    {
-        try
-        {
-            var googleMapsApiKey = _configuration["GoogleMapsApiKey"] ?? string.Empty;
-            return Ok(new { googleMapsApiKey });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao buscar configurações públicas");
-            return StatusCode(500, new ErrorResponseDto("Erro interno ao buscar as configurações.", ex.Message, 500));
         }
     }
 }
